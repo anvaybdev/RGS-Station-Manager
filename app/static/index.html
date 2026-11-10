@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Station Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#111214; --surface:#1A1B1E; --surface-2:#222326; --line:rgba(248,245,238,.16);
+  --fg:#F8F5EE; --fg-muted:rgba(248,245,238,.68); --fg-faint:rgba(248,245,238,.42);
+  --accent:#CB4328; --accent-fg:#F8F5EE; --accent-2:#8F2F1C;
+  --good:#3DD68C; --good-bg:#122A22;
+  --warn:#F5B94D; --warn-bg:#2B2416;
+  --bad:#F2604F; --bad-bg:#2B1C1C;
+  color-scheme: dark;
+}
+*{box-sizing:border-box; font-feature-settings:"zero" 0, "ss05" 0; font-variant-numeric:normal;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  padding-left:16px; padding-right:16px; position:relative;
+}
+h1,h2,h3,.display{font-family:"Chakra Petch",system-ui,sans-serif; font-weight:700; letter-spacing:.01em;}
+.num{font-variant-numeric: tabular-nums;}
+button{font-family:inherit; cursor:pointer;}
+input,select{font-family:inherit; color:var(--fg); background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:15px; width:100%;}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+label{font-size:13px; color:var(--fg-muted); font-weight:600; display:block; margin-bottom:6px;}
+.field{margin-bottom:14px;}
+[hidden]{display:none!important;}
+
+.bg-deco{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
+.bg-deco svg{position:absolute; right:-40px; bottom:40px; width:260px; height:260px; opacity:.14; color:var(--accent); animation:floatCtrl 7s ease-in-out infinite;}
+@keyframes floatCtrl{0%{transform:translateY(0) rotate(-8deg);}50%{transform:translateY(-16px) rotate(-3deg);}100%{transform:translateY(0) rotate(-8deg);}}
+@media (prefers-reduced-motion: reduce){ .bg-deco svg{ animation:none; } }
+.ambient-glow{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
+.ambient-glow::before,.ambient-glow::after{content:""; position:absolute; width:440px; height:440px; border-radius:50%; filter:blur(50px);}
+.ambient-glow::before{top:-160px; left:-140px; background:radial-gradient(circle, var(--accent) 0%, transparent 70%); opacity:.16;}
+.ambient-glow::after{bottom:-180px; right:-150px; background:radial-gradient(circle, var(--accent-2) 0%, transparent 70%); opacity:.20;}
+
+body::before{content:""; position:fixed; inset:0 0 auto; height:0; background:var(--surface); z-index:30; border-bottom:1px solid var(--line);}
+header{position:sticky; top:0; z-index:20; background:var(--surface); border-bottom:1px solid var(--line); margin:0 -16px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.brand{display:flex; align-items:baseline; gap:8px; min-width:0;}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent-2);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent-2) 25%, transparent); flex:none;}
+.brand h1{font-size:17px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.head-right{display:flex; align-items:center; gap:8px; flex:none;}
+.qr-head-btn{background:var(--surface-2); border:1px solid var(--line); color:var(--fg-muted); border-radius:10px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; font-size:15px;}
+.day-chip{font-size:12px; font-weight:600; color:var(--fg-muted); background:var(--surface-2); border:1px solid var(--line); border-radius:999px; padding:5px 10px; white-space:nowrap;}
+.day-chip.warn{color:var(--warn); border-color:var(--warn);}
+.day-chip.bad{color:var(--bad); border-color:var(--bad);}
+
+main{padding:16px 0 96px; min-height:60vh; position:relative; z-index:1;}
+.view{display:block;}
+.section-title{font-size:12.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--fg-muted); font-weight:700; margin:22px 0 10px;}
+.section-title:first-child{margin-top:0;}
+.summary-row{display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; margin-bottom:6px;}
+.stat{flex:1 0 120px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 14px; min-width:0;}
+.stat .label{font-size:11.5px; color:var(--fg-muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
+.stat .value{font-family:"Chakra Petch",sans-serif; font-weight:700; font-size:20px; margin-top:4px;}
+.grid{display:grid; grid-template-columns:1fr; gap:12px;}
+@media(min-width:640px){.grid{grid-template-columns:1fr 1fr;}}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; min-width:0;}
+.console-card{display:flex; flex-direction:column; gap:10px;}
+.console-top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+.console-name{font-size:15px; font-weight:700; font-family:"Chakra Petch",sans-serif; letter-spacing:.01em;}
+.console-type{font-size:12.5px; color:var(--fg-muted); margin-top:2px;}
+.badge{font-size:11px; font-weight:700; padding:4px 9px; border-radius:999px; white-space:nowrap; text-transform:uppercase; letter-spacing:.03em;}
+.badge.available{color:var(--good); background:var(--good-bg);}
+.badge.occupied{color:var(--warn); background:var(--warn-bg);}
+.badge.maintenance{color:var(--fg-muted); background:var(--surface-2);}
+.badge.overdue{color:var(--bad); background:var(--bad-bg);}
+.session-info{display:flex; flex-direction:column; gap:3px;}
+.session-info .who{font-weight:600; font-size:14.5px;}
+.session-info .what{font-size:12.5px; color:var(--fg-muted);}
+.timer{font-family:"IBM Plex Mono",monospace; font-size:28px; font-weight:700; line-height:1;}
+.timer.good{color:var(--good);} .timer.warn{color:var(--warn);} .timer.bad{color:var(--bad);}
+.pay-pill{font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; display:inline-flex; align-items:center; gap:4px; width:fit-content; font-family:"IBM Plex Mono",monospace;}
+.pay-pill.paid{color:var(--good); background:var(--good-bg);}
+.pay-pill.partial{color:var(--warn); background:var(--warn-bg);}
+.pay-pill.unpaid{color:var(--bad); background:var(--bad-bg);}
+.btn-row{display:flex; gap:8px; flex-wrap:wrap;}
+.btn{border:1px solid var(--line); background:var(--surface-2); color:var(--fg); border-radius:10px; padding:9px 13px; font-size:13.5px; font-weight:600; flex:1; min-width:0; text-align:center;}
+.btn.primary{background:var(--accent); color:var(--accent-fg); border-color:transparent;}
+.btn.ghost{background:transparent;}
+.btn.danger{color:var(--bad); border-color:var(--bad);}
+.btn.small{flex:0 0 auto; padding:7px 11px; font-size:12.5px;}
+.btn.full{width:100%;}
+.empty{color:var(--fg-faint); font-size:13.5px; padding:18px 4px; text-align:center;}
+.list-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px; background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:8px;}
+.list-row .main{min-width:0; flex:1;}
+.list-row .title{font-weight:600; font-size:14.5px;}
+.list-row .sub{font-size:12.5px; color:var(--fg-muted); margin-top:1px;}
+.list-row .amt{font-family:"IBM Plex Mono",monospace; font-weight:700; font-size:15px; white-space:nowrap;}
+.icon-btn{border:none; background:transparent; color:var(--fg-muted); font-size:13.5px; font-weight:600; padding:4px 7px; border-radius:8px; line-height:1;}
+.icon-btn:hover{background:var(--surface-2); color:var(--fg);}
+.chip-row{display:flex; gap:8px; flex-wrap:wrap;}
+.chip{border:1px solid var(--line); background:var(--surface-2); color:var(--fg); border-radius:999px; padding:8px 14px; font-size:13.5px; font-weight:600;}
+.chip.active{background:var(--accent); color:var(--accent-fg); border-color:transparent;}
+.seg{display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+.seg button{flex:1; padding:9px; background:var(--surface-2); color:var(--fg-muted); border:none; font-size:13.5px; font-weight:700;}
+.seg button.active{background:var(--accent); color:var(--accent-fg);}
+nav.tabbar{position:fixed; left:0; right:0; bottom:0; z-index:25; display:flex; background:var(--surface); border-top:1px solid var(--line); padding:8px 16px;}
+nav.tabbar button{flex:1; background:none; border:none; color:var(--fg-faint); font-size:12px; font-weight:700; padding:6px 0; display:flex; flex-direction:column; align-items:center; gap:4px;}
+nav.tabbar button .mark{width:7px;height:7px;border-radius:50%;background:transparent;}
+nav.tabbar button.active{color:var(--fg);}
+nav.tabbar button.active .mark{background:var(--accent-2);}
+.sheet-overlay{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:40; display:flex; align-items:flex-end; justify-content:center;}
+.sheet{width:100%; max-width:560px; max-height:88vh; overflow-y:auto; background:var(--surface); border-radius:20px 20px 0 0; border:1px solid var(--line); border-bottom:none; padding:18px 18px 22px;}
+.sheet-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
+.sheet-head h2{font-size:17px; margin:0;}
+.sheet-close{background:var(--surface-2); border:none; color:var(--fg-muted); width:30px;height:30px;border-radius:50%; font-size:16px;}
+.total-line{display:flex; justify-content:space-between; align-items:baseline; background:var(--surface-2); border-radius:12px; padding:12px 14px; margin:14px 0;}
+.total-line .amt{font-family:"IBM Plex Mono",monospace; font-size:22px; font-weight:700;}
+.hint{font-size:12px; color:var(--fg-faint); margin-top:4px;}
+.qr-box{display:flex; align-items:center; gap:12px; background:var(--surface-2); border:1px dashed var(--line); border-radius:12px; padding:12px;}
+.qr-box img{width:64px; height:64px; border-radius:8px; object-fit:cover; background:#fff; flex:none;}
+.qr-placeholder{width:64px; height:64px; border-radius:8px; background:var(--surface); border:1px dashed var(--line); flex:none; display:flex; align-items:center; justify-content:center; color:var(--fg-faint); font-size:10px; text-align:center;}
+.qr-enlarge{width:100%; max-width:320px; border-radius:16px; display:block; margin:0 auto; background:#fff;}
+#stackHost{position:fixed; left:0; right:0; bottom:72px; z-index:60; display:flex; flex-direction:column-reverse; gap:8px; padding:0 16px; pointer-events:none;}
+.toast{align-self:center; background:var(--fg); color:var(--bg); padding:10px 18px; border-radius:999px; font-size:13.5px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,.3); pointer-events:auto;}
+.alert-banner{background:var(--bad-bg); border:1px solid var(--bad); color:var(--fg); border-radius:14px; padding:12px 14px; box-shadow:0 8px 24px rgba(0,0,0,.35); pointer-events:auto;}
+.alert-banner .head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;}
+.alert-banner .title{font-weight:700; font-size:13.5px; color:var(--bad);}
+.alert-banner .who{font-size:13.5px; font-weight:600;}
+.alert-banner .dismiss{background:none; border:none; color:var(--fg-muted); font-size:16px; padding:2px 6px; line-height:1;}
+.alert-banner .btn-row{margin-top:8px;}
+
+#loginView{min-height:100vh; display:flex; align-items:center; justify-content:center; position:relative; z-index:1;}
+.login-card{background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:28px; width:100%; max-width:340px;}
+.login-card h1{font-size:22px; margin:0 0 4px;}
+.login-card p{color:var(--fg-muted); font-size:13px; margin:0 0 20px;}
+.login-error{color:var(--bad); font-size:13px; margin-top:8px;}
+</style>
+</head>
+<body>
+
+<div class="bg-deco" aria-hidden="true">
+  <svg viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M55 40 H145 C168 40 182 58 178 82 L172 108 C169 122 152 128 142 117 L132 106 C127 100 118 97 110 97 H90 C82 97 73 100 68 106 L58 117 C48 128 31 122 28 108 L22 82 C18 58 32 40 55 40 Z" stroke="currentColor" stroke-width="5.5"/>
+    <path d="M62 62 V82 M52 72 H72" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/>
+    <circle cx="132" cy="64" r="6" fill="currentColor"/><circle cx="150" cy="78" r="6" fill="currentColor"/>
+    <circle cx="150" cy="60" r="6" fill="currentColor"/><circle cx="132" cy="82" r="6" fill="currentColor"/>
+  </svg>
+</div>
+<div class="ambient-glow" aria-hidden="true"></div>
+
+<div id="loginView" hidden>
+  <div class="login-card">
+    <h1>Station Manager</h1>
+    <p>Sign in to manage sessions.</p>
+    <div class="field"><label for="l_user">Username</label><input id="l_user" autocomplete="username"></div>
+    <div class="field"><label for="l_pass">Password</label><input id="l_pass" type="password" autocomplete="current-password"></div>
+    <button class="btn primary full" id="loginBtn">Sign in</button>
+    <div class="login-error" id="loginError" hidden></div>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header>
+    <div class="brand"><span class="dot"></span><h1 id="cafeNameLabel">Station Manager</h1></div>
+    <div class="head-right">
+      <button class="qr-head-btn" id="headQrBtn" title="Show payment QR" aria-label="Show payment QR">QR</button>
+      <div class="day-chip" id="dayChip">0 / 500 today</div>
+    </div>
+  </header>
+  <main>
+    <section class="view" id="view-dashboard"><div id="dashRoot"></div></section>
+    <section class="view" id="view-log" hidden><div id="logRoot"></div></section>
+    <section class="view" id="view-settings" hidden><div id="settingsRoot"></div></section>
+  </main>
+  <nav class="tabbar">
+    <button data-view="dashboard" class="active"><span class="mark"></span>Dashboard</button>
+    <button data-view="log"><span class="mark"></span>Log</button>
+    <button data-view="settings"><span class="mark"></span>Settings</button>
+  </nav>
+</div>
+
+<div id="sheetHost"></div>
+<div id="stackHost"></div>
+
+<script>
+(function(){
+"use strict";
+
+var state = {
+  consoles: [], timeOptions: [], addOns: [], runningSessions: [], todaySessions: [],
+  settings: { cafeName: "Station Manager", currencySymbol: "₹", paymentQrPath: "" },
+  view: "dashboard",
+  alertedSessions: {}
+};
+
+function $(sel, root){ return (root||document).querySelector(sel); }
+function $all(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+function pad2(n){ return (n<10?"0":"")+n; }
+function round2(n){ return Math.round(n*100)/100; }
+function money(n){
+  var v = round2(n||0);
+  var s = (v % 1 === 0) ? String(v) : v.toFixed(2);
+  return state.settings.currencySymbol + s;
+}
+function fmtDuration(mins){
+  mins = Math.round(mins);
+  var h = Math.floor(mins/60), m = mins%60;
+  if (h<=0) return m+"m";
+  if (m===0) return h+"h";
+  return h+"h "+m+"m";
+}
+function fmtClock(ms){
+  var neg = ms < 0;
+  ms = Math.abs(ms);
+  var totalSec = Math.floor(ms/1000);
+  var h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60), s = totalSec%60;
+  var core = h>0 ? (h+":"+pad2(m)+":"+pad2(s)) : (m+":"+pad2(s));
+  return neg ? ("+"+core) : core;
+}
+function timerClass(remainingMs, durationMinutes){
+  if (remainingMs < 0) return "bad";
+  var totalMs = Math.max(1, durationMinutes||0) * 60000;
+  var warnMs = Math.min(10*60000, totalMs*0.15);
+  warnMs = Math.max(warnMs, 60000);
+  return remainingMs <= warnMs ? "warn" : "good";
+}
+function byId(list, id){ for (var i=0;i<list.length;i++){ if(list[i].id===id) return list[i]; } return null; }
+function escapeHtml(s){
+  return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+
+async function api(method, path, body){
+  var opts = { method: method, headers: {}, credentials: "same-origin" };
+  if (body){ opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
+  var res = await fetch(path, opts);
+  if (res.status === 401){ showLogin(); throw new Error("not_logged_in"); }
+  if (!res.ok){ var t = await res.text(); throw new Error(t || res.statusText); }
+  var ct = res.headers.get("content-type")||"";
+  return ct.indexOf("json")>=0 ? res.json() : null;
+}
+
+function toast(msg){
+  var host = $("#stackHost");
+  var t = document.createElement("div");
+  t.className = "toast"; t.textContent = msg;
+  host.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 2400);
+}
+function showTimeUpAlert(sess){
+  var host = $("#stackHost");
+  var el = document.createElement("div");
+  el.className = "alert-banner";
+  el.innerHTML =
+    '<div class="head"><span class="title">Time’s up</span><button class="dismiss" data-dismiss>&times;</button></div>'+
+    '<div class="who">'+escapeHtml(sess.customerName)+' &middot; '+escapeHtml(sess.consoleName)+'</div>'+
+    '<div class="btn-row"><button class="btn small" data-a="extend">Extend</button><button class="btn small primary" data-a="end">End</button></div>';
+  host.appendChild(el);
+  el.querySelector("[data-dismiss]").onclick = function(){ el.remove(); };
+  el.querySelector('[data-a="extend"]').onclick = function(){ el.remove(); openExtendSheet(byId(state.runningSessions, sess.id)); };
+  el.querySelector('[data-a="end"]').onclick = function(){ el.remove(); openEndSheet(byId(state.runningSessions, sess.id)); };
+}
+
+function switchView(name){
+  state.view = name;
+  $all(".view").forEach(function(v){ v.hidden = (v.id !== "view-"+name); });
+  $all("nav.tabbar button").forEach(function(b){ b.classList.toggle("active", b.dataset.view===name); });
+  renderAll();
+}
+function openSheet(html, onMount){
+  var host = $("#sheetHost");
+  host.innerHTML = '<div class="sheet-overlay" id="activeOverlay"><div class="sheet">'+html+'</div></div>';
+  $("#activeOverlay").addEventListener("click", function(e){ if(e.target.id==="activeOverlay") closeSheet(); });
+  if (onMount) onMount(host);
+}
+function closeSheet(){ $("#sheetHost").innerHTML = ""; }
+
+function qrSectionHtml(){
+  if (!state.settings.paymentQrPath) return '<div class="hint">No payment QR added yet. Add one in Settings.</div>';
+  return '<div class="qr-box" style="margin-top:8px;cursor:pointer" data-show-qr>'+
+    '<img src="'+state.settings.paymentQrPath+'" alt="Payment QR">'+
+    '<div><div style="font-weight:600;font-size:13.5px;">Scan to pay</div><div class="hint">Tap to show full size</div></div></div>';
+}
+function bindQrPreview(host){
+  var box = host.querySelector("[data-show-qr]");
+  if (box) box.onclick = showQrOverlay;
+}
+function showQrOverlay(){
+  if (!state.settings.paymentQrPath){ toast("No QR added yet"); return; }
+  openSheet(
+    '<div class="sheet-head"><h2>Scan to pay</h2><button class="sheet-close" data-close>&times;</button></div>'+
+    '<img class="qr-enlarge" src="'+state.settings.paymentQrPath+'" alt="Payment QR code">',
+    function(host){ host.querySelector("[data-close]").onclick = closeSheet; }
+  );
+}
+
+/* ---------- auth ---------- */
+function showLogin(){
+  $("#loginView").hidden = false;
+  $("#app").hidden = true;
+}
+function showApp(){
+  $("#loginView").hidden = true;
+  $("#app").hidden = false;
+  startPolling();
+}
+async function checkAuth(){
+  var r = await fetch("/api/me", {credentials:"same-origin"});
+  var d = await r.json();
+  if (d.loggedIn) showApp(); else showLogin();
+}
+$("#loginBtn").onclick = async function(){
+  var user = $("#l_user").value.trim();
+  var pass = $("#l_pass").value;
+  $("#loginError").hidden = true;
+  this.disabled = true;
+  try{
+    await api("POST", "/api/login", {username:user, password:pass});
+    showApp();
+  } catch(e){
+    $("#loginError").textContent = "Wrong username or password.";
+    $("#loginError").hidden = false;
+  }
+  this.disabled = false;
+};
+
+/* ---------- polling ---------- */
+var pollTimer = null;
+async function refreshState(){
+  try{
+    var d = await api("GET", "/api/state");
+    state.consoles = d.consoles;
+    state.timeOptions = d.timeOptions;
+    state.addOns = d.addOns;
+    state.runningSessions = d.runningSessions;
+    state.todaySessions = d.todaySessions;
+    state.settings = Object.assign(state.settings, d.settings);
+    $("#cafeNameLabel").textContent = state.settings.cafeName || "Station Manager";
+    renderAll();
+  } catch(e){ /* keep last known state on transient errors */ }
+}
+function startPolling(){
+  refreshState();
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(refreshState, 3000);
+}
+
+/* ============ DASHBOARD ============ */
+function renderDashboard(){
+  var root = $("#dashRoot");
+  if (!root) return;
+  var byConsole = {};
+  state.runningSessions.forEach(function(s){ byConsole[s.consoleId] = s; });
+  var html = "";
+  if (state.consoles.length === 0){
+    html += '<div class="empty">No consoles yet. Add your first one in Settings &rarr; Consoles.</div>';
+  } else {
+    html += '<div class="grid">';
+    state.consoles.forEach(function(c){ html += renderConsoleCard(c, byConsole[c.id]); });
+    html += '</div>';
+  }
+  root.innerHTML = html;
+  bindDashboardEvents(root);
+}
+function renderConsoleCard(c, sess){
+  var statusClass = sess ? "occupied" : (c.status === "maintenance" ? "maintenance" : "available");
+  var statusLabel = sess ? "In use" : (c.status === "maintenance" ? "Maintenance" : "Available");
+  var body = "";
+  if (sess){
+    var remainingMs = new Date(sess.endTime).getTime() - Date.now();
+    var cls = timerClass(remainingMs, sess.durationMinutes);
+    var payCls = sess.paymentStatus === "paid" ? "paid" : (sess.paymentStatus === "partial" ? "partial" : "unpaid");
+    var addonNote = (sess.addOns && sess.addOns.length) ? (' &middot; + '+sess.addOns.map(function(a){ return escapeHtml(a.name); }).join(", ")) : '';
+    body =
+      '<div class="session-info"><div class="who">'+escapeHtml(sess.customerName)+'</div>'+
+        '<div class="what">'+escapeHtml(sess.gameName||"—")+' &middot; '+fmtDuration(sess.durationMinutes)+' booked'+addonNote+'</div></div>'+
+      '<div class="timer '+cls+' num" data-timer-for="'+sess.id+'" data-end="'+sess.endTime+'" data-duration="'+sess.durationMinutes+'">'+fmtClock(remainingMs)+'</div>'+
+      '<span class="pay-pill '+payCls+'">'+money(sess.amountPaid||0)+' / '+money(sess.amountDue)+'</span>'+
+      '<div class="btn-row">'+
+        '<button class="btn small" data-action="pay" data-id="'+sess.id+'">Collect pay</button>'+
+        '<button class="btn small" data-action="extend" data-id="'+sess.id+'">Extend</button>'+
+        '<button class="btn small primary" data-action="end" data-id="'+sess.id+'">End</button></div>';
+  } else if (c.status === "maintenance"){
+    body = '<div class="session-info"><div class="what">Marked unavailable</div></div>'+
+      '<div class="btn-row"><button class="btn full" data-action="unmaintain" data-id="'+c.id+'">Mark available</button></div>';
+  } else {
+    body = '<div class="session-info"><div class="what">'+money(c.hourlyRate)+' / hour</div></div>'+
+      '<div class="btn-row"><button class="btn full primary" data-action="start" data-id="'+c.id+'">Start session</button></div>'+
+      '<div class="btn-row"><button class="btn small ghost" data-action="maintain" data-id="'+c.id+'">Mark maintenance</button></div>';
+  }
+  return '<div class="card console-card"><div class="console-top">'+
+    '<div><div class="console-name">'+escapeHtml(c.name)+'</div><div class="console-type">'+escapeHtml(c.type||"")+'</div></div>'+
+    '<span class="badge '+statusClass+'">'+statusLabel+'</span></div>'+body+'</div>';
+}
+function bindDashboardEvents(root){
+  root.onclick = function(e){
+    var btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    var action = btn.dataset.action, id = parseInt(btn.dataset.id);
+    if (action === "start") openStartSheet(byId(state.consoles, id));
+    else if (action === "maintain") setConsoleStatus(id, "maintenance");
+    else if (action === "unmaintain") setConsoleStatus(id, "available");
+    else if (action === "extend") openExtendSheet(byId(state.runningSessions, id));
+    else if (action === "end") openEndSheet(byId(state.runningSessions, id));
+    else if (action === "pay") openPaySheet(byId(state.runningSessions, id));
+  };
+}
+function tickTimers(){
+  $all("[data-timer-for]").forEach(function(el){
+    var remainingMs = new Date(el.dataset.end).getTime() - Date.now();
+    var duration = parseFloat(el.dataset.duration)||0;
+    el.textContent = fmtClock(remainingMs);
+    el.classList.remove("good","warn","bad");
+    el.classList.add(timerClass(remainingMs, duration));
+    var card = el.closest(".console-card");
+    if (card){
+      var badge = card.querySelector(".badge");
+      if (badge && remainingMs < 0){ badge.textContent = "Overdue"; badge.className = "badge overdue"; }
+    }
+  });
+  state.runningSessions.forEach(function(s){
+    var remainingMs = new Date(s.endTime).getTime() - Date.now();
+    if (remainingMs < 0 && !state.alertedSessions[s.id]){
+      state.alertedSessions[s.id] = true;
+      showTimeUpAlert(s);
+    }
+  });
+}
+setInterval(tickTimers, 1000);
+
+async function setConsoleStatus(id, status){
+  try { await api("PUT", "/api/consoles/"+id, {status:status}); refreshState(); }
+  catch(e){ toast("Couldn't update"); }
+}
+
+/* ---------- start session sheet ---------- */
+function applicableAddOns(console_){
+  return state.addOns.filter(function(a){ return !a.consoleType || a.consoleType === console_.type; });
+}
+function openStartSheet(console_){
+  if (!console_) return;
+  var opts = state.timeOptions.length ? state.timeOptions : [{minutes:30,label:"30 mins"},{minutes:60,label:"1 hour"}];
+  var chips = opts.map(function(o,i){
+    return '<button type="button" class="chip'+(i===1||opts.length===1?" active":"")+'" data-mins="'+o.minutes+'">'+escapeHtml(o.label)+'</button>';
+  }).join("")+'<button type="button" class="chip" data-mins="custom">Custom</button>';
+  var addons = applicableAddOns(console_);
+  var addonFieldHtml = addons.length ? (
+    '<div class="field"><label>Add-ons</label><div class="chip-row" id="addonChips">'+
+      addons.map(function(a){ return '<button type="button" class="chip" data-addon-id="'+a.id+'" data-addon-name="'+escapeHtml(a.name)+'" data-addon-amt="'+a.amount+'">'+escapeHtml(a.name)+' (+'+money(a.amount)+')</button>'; }).join("")+
+    '</div></div>'
+  ) : '';
+  var html =
+    '<div class="sheet-head"><h2>Start session</h2><button class="sheet-close" data-close>&times;</button></div>'+
+    '<div class="field"><label>Console</label><div style="font-weight:700;font-size:15px">'+escapeHtml(console_.name)+'</div></div>'+
+    '<div class="field"><label for="f_name">Customer name</label><input id="f_name" placeholder="e.g. Rohan"></div>'+
+    '<div class="field"><label for="f_phone">Phone (optional)</label><input id="f_phone" type="tel" placeholder="98xxxxxxxx"></div>'+
+    '<div class="field"><label for="f_game">Playing</label><input id="f_game" placeholder="e.g. FIFA 26"></div>'+
+    '<div class="field"><label>Duration</label><div class="chip-row" id="durChips">'+chips+'</div>'+
+      '<input id="f_customMins" type="number" min="1" placeholder="Minutes" hidden style="margin-top:8px"></div>'+
+    '<div class="field"><label for="f_rate">Rate per hour</label><input id="f_rate" type="number" min="0" step="1" value="'+(console_.hourlyRate||100)+'"></div>'+
+    addonFieldHtml+
+    '<div class="field"><label>Payment</label><div class="seg" id="paySeg">'+
+      '<button type="button" data-pay="later" class="active">Pay later</button>'+
+      '<button type="button" data-pay="now">Pay now</button></div></div>'+
+    '<div class="field" id="methodField" hidden><label>Method</label><div class="seg" id="methodSeg">'+
+      '<button type="button" data-method="cash" class="active">Cash</button>'+
+      '<button type="button" data-method="upi">UPI</button>'+
+      '<button type="button" data-method="card">Card</button></div><div id="qrSlot" hidden></div></div>'+
+    '<div class="total-line"><span>Total</span><span class="amt num" id="totalAmt">'+money(0)+'</span></div>'+
+    '<button class="btn primary full" id="startBtn">Start timer</button>';
+  openSheet(html, function(host){
+    var selectedMins = opts.length ? opts[Math.min(1,opts.length-1)].minutes : 60;
+    var selectedPay = "later", selectedMethod = "cash", selectedAddOns = [];
+    function recompute(){
+      var rate = parseFloat($("#f_rate", host).value) || 0;
+      var amt = rate/60*selectedMins;
+      selectedAddOns.forEach(function(a){ amt += a.amount; });
+      $("#totalAmt", host).textContent = money(amt);
+    }
+    var addonChips = $("#addonChips", host);
+    if (addonChips) addonChips.onclick = function(e){
+      var chip = e.target.closest(".chip"); if(!chip) return;
+      chip.classList.toggle("active");
+      var id = chip.dataset.addonId, name = chip.dataset.addonName, amt = parseFloat(chip.dataset.addonAmt)||0;
+      if (chip.classList.contains("active")) selectedAddOns.push({id:id, name:name, amount:amt});
+      else selectedAddOns = selectedAddOns.filter(function(a){ return a.id !== id; });
+      recompute();
+    };
+    function updateQrSlot(){
+      var slot = $("#qrSlot", host);
+      if (selectedPay === "now" && selectedMethod === "upi"){ slot.hidden = false; slot.innerHTML = qrSectionHtml(); bindQrPreview(slot); }
+      else { slot.hidden = true; slot.innerHTML = ""; }
+    }
+    $("#durChips", host).onclick = function(e){
+      var chip = e.target.closest(".chip"); if(!chip) return;
+      $all(".chip", $("#durChips", host)).forEach(function(c){ c.classList.remove("active"); });
+      chip.classList.add("active");
+      if (chip.dataset.mins === "custom"){ $("#f_customMins", host).hidden = false; selectedMins = parseInt($("#f_customMins", host).value) || 0; }
+      else { $("#f_customMins", host).hidden = true; selectedMins = parseInt(chip.dataset.mins); }
+      recompute();
+    };
+    $("#f_customMins", host).oninput = function(){ selectedMins = parseInt(this.value)||0; recompute(); };
+    $("#f_rate", host).oninput = recompute;
+    $("#paySeg", host).onclick = function(e){
+      var b = e.target.closest("button"); if(!b) return;
+      $all("button", this).forEach(function(x){ x.classList.remove("active"); });
+      b.classList.add("active"); selectedPay = b.dataset.pay;
+      $("#methodField", host).hidden = selectedPay !== "now";
+      updateQrSlot();
+    };
+    $("#methodSeg", host).onclick = function(e){
+      var b = e.target.closest("button"); if(!b) return;
+      $all("button", this).forEach(function(x){ x.classList.remove("active"); });
+      b.classList.add("active"); selectedMethod = b.dataset.method;
+      updateQrSlot();
+    };
+    host.querySelector("[data-close]").onclick = closeSheet;
+    recompute();
+    $("#startBtn", host).onclick = async function(){
+      var name = $("#f_name", host).value.trim();
+      if (!name){ toast("Enter a customer name"); return; }
+      if (!selectedMins || selectedMins <= 0){ toast("Pick a duration"); return; }
+      var rate = parseFloat($("#f_rate", host).value) || 0;
+      this.disabled = true;
+      try{
+        await api("POST", "/api/sessions/start", {
+          consoleId: console_.id, customerName: name, phone: $("#f_phone", host).value.trim(),
+          gameName: $("#f_game", host).value.trim(), ratePerHour: rate, durationMinutes: selectedMins,
+          addOns: selectedAddOns, payNow: selectedPay==="now", method: selectedMethod,
+        });
+        closeSheet(); toast("Session started"); refreshState();
+      } catch(e){ this.disabled=false; toast("Couldn't start"); }
+    };
+  });
+}
+
+/* ---------- extend sheet ---------- */
+function openExtendSheet(sess){
+  if (!sess) return;
+  var opts = state.timeOptions.length ? state.timeOptions : [{minutes:30,label:"30 mins"},{minutes:60,label:"1 hour"}];
+  var chips = opts.map(function(o,i){
+    return '<button type="button" class="chip'+(i===0?" active":"")+'" data-mins="'+o.minutes+'">'+escapeHtml(o.label)+'</button>';
+  }).join("")+'<button type="button" class="chip" data-mins="custom">Custom</button>';
+  var html =
+    '<div class="sheet-head"><h2>Extend time</h2><button class="sheet-close" data-close>&times;</button></div>'+
+    '<div class="field"><div style="font-weight:700">'+escapeHtml(sess.customerName)+' &middot; '+escapeHtml(sess.consoleName)+'</div></div>'+
+    '<div class="field"><label>Add time</label><div class="chip-row">'+chips+'</div>'+
+      '<input id="f_customMins" type="number" min="1" placeholder="Minutes" hidden style="margin-top:8px"></div>'+
+    '<div class="total-line"><span>Extra charge</span><span class="amt num" id="extraAmt">'+money(0)+'</span></div>'+
+    '<button class="btn primary full" id="extendBtn">Confirm extension</button>';
+  openSheet(html, function(host){
+    var selectedMins = opts.length ? opts[0].minutes : 30;
+    function recompute(){ $("#extraAmt", host).textContent = money(sess.ratePerHour/60*selectedMins); }
+    host.querySelector(".chip-row").onclick = function(e){
+      var chip = e.target.closest(".chip"); if(!chip) return;
+      $all(".chip", host).forEach(function(c){ c.classList.remove("active"); });
+      chip.classList.add("active");
+      if (chip.dataset.mins === "custom"){ $("#f_customMins", host).hidden = false; selectedMins = parseInt($("#f_customMins", host).value)||0; }
+      else { $("#f_customMins", host).hidden = true; selectedMins = parseInt(chip.dataset.mins); }
+      recompute();
+    };
+    $("#f_customMins", host).oninput = function(){ selectedMins = parseInt(this.value)||0; recompute(); };
+    host.querySelector("[data-close]").onclick = closeSheet;
+    recompute();
+    $("#extendBtn", host).onclick = async function(){
+      if (!selectedMins || selectedMins<=0){ toast("Pick minutes to add"); return; }
+      this.disabled = true;
+      try{
+        await api("POST", "/api/sessions/"+sess.id+"/extend", {minutes: selectedMins});
+        delete state.alertedSessions[sess.id];
+        closeSheet(); toast("Extended by "+fmtDuration(selectedMins)); refreshState();
+      } catch(e){ this.disabled=false; toast("Couldn't extend"); }
+    };
+  });
+}
+
+/* ---------- collect payment sheet ---------- */
+function openPaySheet(sess){
+  if (!sess) return;
+  var due = round2(sess.amountDue - (sess.amountPaid||0));
+  var html =
+    '<div class="sheet-head"><h2>Collect payment</h2><button class="sheet-close" data-close>&times;</button></div>'+
+    '<div class="field"><div style="font-weight:700">'+escapeHtml(sess.customerName)+' &middot; '+escapeHtml(sess.consoleName)+'</div>'+
+      '<div class="hint">Paid '+money(sess.amountPaid||0)+' of '+money(sess.amountDue)+'</div></div>'+
+    '<div class="field"><label for="f_amt">Amount received</label><input id="f_amt" type="number" min="0" step="1" value="'+(due>0?due:0)+'"></div>'+
+    '<div class="field"><label>Method</label><div class="seg" id="methodSeg">'+
+      '<button type="button" data-method="cash" class="active">Cash</button>'+
+      '<button type="button" data-method="upi">UPI</button>'+
+      '<button type="button" data-method="card">Card</button></div><div id="qrSlot" hidden></div></div>'+
+    '<button class="btn primary full" id="payBtn">Save payment</button>';
+  openSheet(html, function(host){
+    var method = "cash";
+    function updateQrSlot(){
+      var slot = $("#qrSlot", host);
+      if (method === "upi"){ slot.hidden = false; slot.innerHTML = qrSectionHtml(); bindQrPreview(slot); }
+      else { slot.hidden = true; slot.innerHTML = ""; }
+    }
+    $("#methodSeg", host).onclick = function(e){
+      var b = e.target.closest("button"); if(!b) return;
+      $all("button", this).forEach(function(x){ x.classList.remove("active"); });
+      b.classList.add("active"); method = b.dataset.method;
+      updateQrSlot();
+    };
+    host.querySelector("[data-close]").onclick = closeSheet;
+    $("#payBtn", host).onclick = async function(){
+      var amt = parseFloat($("#f_amt", host).value) || 0;
+      this.disabled = true;
+      try{
+        await api("POST", "/api/sessions/"+sess.id+"/pay", {amount: amt, method: method});
+        closeSheet(); toast("Payment recorded"); refreshState();
+      } catch(e){ this.disabled=false; toast("Couldn't save"); }
+    };
+  });
+}
+
+/* ---------- end session sheet ---------- */
+function openEndSheet(sess){
+  if (!sess) return;
+  var due = round2(sess.amountDue - (sess.amountPaid||0));
+  var html =
+    '<div class="sheet-head"><h2>End session</h2><button class="sheet-close" data-close>&times;</button></div>'+
+    '<div class="field"><div style="font-weight:700">'+escapeHtml(sess.customerName)+' &middot; '+escapeHtml(sess.consoleName)+'</div>'+
+      '<div class="hint">Booked '+fmtDuration(sess.durationMinutes)+' &middot; Paid '+money(sess.amountPaid||0)+' of '+money(sess.amountDue)+'</div></div>'+
+    (due > 0 ? (
+      '<div class="field"><label for="f_amt">Collect remaining now</label><input id="f_amt" type="number" min="0" step="1" value="'+due+'"></div>'+
+      '<div class="field"><label>Method</label><div class="seg" id="methodSeg">'+
+        '<button type="button" data-method="cash" class="active">Cash</button>'+
+        '<button type="button" data-method="upi">UPI</button>'+
+        '<button type="button" data-method="card">Card</button></div><div id="qrSlot" hidden></div></div>'
+    ) : '<div class="hint">Fully paid.</div>')+
+    '<button class="btn primary full" id="endBtn" style="margin-top:14px">End session</button>'+
+    '<button class="btn danger full" id="cancelBtn" style="margin-top:8px">Cancel (no-show)</button>';
+  openSheet(html, function(host){
+    var method = "cash";
+    var methodSeg = $("#methodSeg", host);
+    function updateQrSlot(){
+      var slot = $("#qrSlot", host);
+      if (!slot) return;
+      if (method === "upi"){ slot.hidden = false; slot.innerHTML = qrSectionHtml(); bindQrPreview(slot); }
+      else { slot.hidden = true; slot.innerHTML = ""; }
+    }
+    if (methodSeg) methodSeg.onclick = function(e){
+      var b = e.target.closest("button"); if(!b) return;
+      $all("button", this).forEach(function(x){ x.classList.remove("active"); });
+      b.classList.add("active"); method = b.dataset.method;
+      updateQrSlot();
+    };
+    host.querySelector("[data-close]").onclick = closeSheet;
+    $("#endBtn", host).onclick = async function(){
+      this.disabled = true;
+      var amtField = $("#f_amt", host);
+      var collectNow = amtField ? (parseFloat(amtField.value)||0) : 0;
+      try{
+        await api("POST", "/api/sessions/"+sess.id+"/end", {collectAmount: collectNow, method: method});
+        delete state.alertedSessions[sess.id];
+        closeSheet(); toast("Session ended"); refreshState();
+      } catch(e){ this.disabled=false; toast("Couldn't end"); }
+    };
+    $("#cancelBtn", host).onclick = async function(){
+      this.disabled = true;
+      try{
+        await api("POST", "/api/sessions/"+sess.id+"/cancel", {});
+        delete state.alertedSessions[sess.id];
+        closeSheet(); toast("Session cancelled"); refreshState();
+      } catch(e){ this.disabled=false; toast("Couldn't cancel"); }
+    };
+  });
+}
+
+/* ============ LOG VIEW ============ */
+function renderLog(){
+  var root = $("#logRoot");
+  if (!root) return;
+  var list = state.todaySessions;
+  var collected = 0, pending = 0, count = list.length;
+  list.forEach(function(s){
+    collected += s.amountPaid||0;
+    if (s.status !== "cancelled") pending += Math.max(0,(s.amountDue||0)-(s.amountPaid||0));
+  });
+  var html = '<div class="summary-row">'+
+    '<div class="stat"><div class="label">Sessions today</div><div class="value num">'+count+' / 500</div></div>'+
+    '<div class="stat"><div class="label">Collected</div><div class="value num">'+money(collected)+'</div></div>'+
+    '<div class="stat"><div class="label">Pending</div><div class="value num">'+money(pending)+'</div></div></div>';
+  html += '<div class="section-title">Today’s sessions</div>';
+  if (!list.length){ html += '<div class="empty">No sessions yet today.</div>'; }
+  else {
+    list.forEach(function(s){
+      var statusLabel = s.status === "running" ? "Running" : (s.status === "cancelled" ? "Cancelled" : "Done");
+      var payCls = s.paymentStatus === "paid" ? "paid" : (s.paymentStatus === "partial" ? "partial" : "unpaid");
+      var addonNote = (s.addOns && s.addOns.length) ? (' &middot; + '+s.addOns.map(function(a){ return escapeHtml(a.name); }).join(", ")) : '';
+      html += '<div class="list-row"><div class="main">'+
+        '<div class="title">'+escapeHtml(s.customerName)+' &middot; '+escapeHtml(s.consoleName)+'</div>'+
+        '<div class="sub">'+escapeHtml(s.gameName||"—")+' &middot; '+fmtDuration(s.durationMinutes)+addonNote+' &middot; '+statusLabel+
+          ' &middot; <span class="pay-pill '+payCls+'" style="padding:2px 7px">'+s.paymentStatus+'</span></div></div>'+
+        '<div class="amt num">'+money(s.amountDue)+'</div></div>';
+    });
+  }
+  root.innerHTML = html;
+}
+
+/* ============ SETTINGS VIEW ============ */
+function renderSettings(){
+  var root = $("#settingsRoot");
+  if (!root) return;
+  var html = '<div class="section-title">Cafe</div>'+
+    '<div class="card">'+
+      '<div class="field"><label for="s_name">Cafe name</label><input id="s_name" value="'+escapeHtml(state.settings.cafeName||"")+'"></div>'+
+      '<div class="field"><label for="s_cur">Currency symbol</label><input id="s_cur" value="'+escapeHtml(state.settings.currencySymbol||"")+'" style="width:80px"></div>'+
+      '<button class="btn primary" id="saveSettings">Save</button>'+
+    '</div>';
+
+  html += '<div class="section-title">Online payment QR</div><div class="card">';
+  if (state.settings.paymentQrPath){
+    html += '<div class="qr-box" data-show-qr style="cursor:pointer">'+
+      '<img src="'+state.settings.paymentQrPath+'" alt="Payment QR">'+
+      '<div><div style="font-weight:600;font-size:13.5px;">QR added</div><div class="hint">Tap to preview</div></div></div>'+
+      '<div class="btn-row" style="margin-top:10px;"><button class="btn small" id="replaceQrBtn">Replace</button><button class="btn small danger" id="removeQrBtn">Remove</button></div>';
+  } else {
+    html += '<div class="qr-box"><div class="qr-placeholder">No QR</div>'+
+      '<div><div style="font-weight:600;font-size:13.5px;">Add your UPI QR</div><div class="hint">Shown to customers during UPI payments</div></div></div>'+
+      '<button class="btn primary full" id="uploadQrBtn" style="margin-top:10px;">Upload QR code</button>';
+  }
+  html += '<input type="file" id="qrFileInput" accept="image/*" hidden></div>';
+
+  html += '<div class="section-title">Consoles</div>';
+  if (!state.consoles.length) html += '<div class="empty">No consoles yet.</div>';
+  state.consoles.forEach(function(c){
+    html += '<div class="list-row"><div class="main"><div class="title">'+escapeHtml(c.name)+'</div>'+
+      '<div class="sub">'+escapeHtml(c.type||"")+' &middot; '+money(c.hourlyRate)+'/hr &middot; '+c.status+'</div></div>'+
+      '<button class="icon-btn" data-edit-console="'+c.id+'">Edit</button>'+
+      '<button class="icon-btn" data-del-console="'+c.id+'">Delete</button></div>';
+  });
+  html += '<button class="btn full" id="addConsoleBtn">+ Add console</button>';
+
+  html += '<div class="section-title">Time slabs</div>';
+  if (!state.timeOptions.length) html += '<div class="empty">No time options yet.</div>';
+  state.timeOptions.forEach(function(t){
+    html += '<div class="list-row"><div class="main"><div class="title">'+escapeHtml(t.label)+'</div>'+
+      '<div class="sub">'+t.minutes+' minutes</div></div>'+
+      '<button class="icon-btn" data-del-time="'+t.id+'">Delete</button></div>';
+  });
+  html += '<button class="btn full" id="addTimeBtn">+ Add time option</button>';
+
+  html += '<div class="section-title">Add-ons</div>';
+  if (!state.addOns.length) html += '<div class="empty">No add-ons yet.</div>';
+  state.addOns.forEach(function(a){
+    html += '<div class="list-row"><div class="main"><div class="title">'+escapeHtml(a.name)+'</div>'+
+      '<div class="sub">+'+money(a.amount)+(a.consoleType ? (' &middot; only with '+escapeHtml(a.consoleType)) : ' · any console')+'</div></div>'+
+      '<button class="icon-btn" data-del-addon="'+a.id+'">Delete</button></div>';
+  });
+  html += '<button class="btn full" id="addAddonBtn">+ Add add-on</button>';
+
+  html += '<div class="section-title">Account</div><div class="card"><button class="btn full danger" id="logoutBtn">Sign out</button></div>';
+
+  root.innerHTML = html;
+
+  $("#saveSettings", root).onclick = async function(){
+    this.disabled = true;
+    try{
+      await api("PUT", "/api/settings", {cafeName: $("#s_name", root).value.trim()||"Station Manager", currencySymbol: $("#s_cur", root).value.trim()||"₹"});
+      toast("Saved"); refreshState();
+    } catch(e){ toast("Couldn't save"); }
+    this.disabled = false;
+  };
+  var qrBox = root.querySelector("[data-show-qr]");
+  if (qrBox) qrBox.onclick = showQrOverlay;
+  var qrInput = $("#qrFileInput", root);
+  var triggerUpload = function(){ qrInput.click(); };
+  var uploadBtn = $("#uploadQrBtn", root); if (uploadBtn) uploadBtn.onclick = triggerUpload;
+  var replaceBtn = $("#replaceQrBtn", root); if (replaceBtn) replaceBtn.onclick = triggerUpload;
+  var removeBtn = $("#removeQrBtn", root);
+  if (removeBtn) removeBtn.onclick = async function(){
+    this.disabled = true;
+    try{ await api("DELETE", "/api/settings/qr"); toast("QR removed"); refreshState(); }
+    catch(e){ this.disabled=false; toast("Couldn't remove"); }
+  };
+  qrInput.onchange = async function(){
+    var file = qrInput.files && qrInput.files[0];
+    qrInput.value = "";
+    if (!file) return;
+    toast("Uploading QR…");
+    try{
+      var fd = new FormData(); fd.append("file", file);
+      var res = await fetch("/api/settings/qr", {method:"POST", body:fd, credentials:"same-origin"});
+      if (!res.ok) throw new Error();
+      toast("QR added"); refreshState();
+    } catch(e){ toast("Couldn't upload"); }
+  };
+
+  $("#addConsoleBtn", root).onclick = function(){ openConsoleForm(null); };
+  root.querySelectorAll("[data-edit-console]").forEach(function(b){
+    b.onclick = function(){ openConsoleForm(byId(state.consoles, parseInt(b.dataset.editConsole))); };
+  });
+  root.querySelectorAll("[data-del-console]").forEach(function(b){
+    b.onclick = function(){ confirmDeleteConsole(byId(state.consoles, parseInt(b.dataset.delConsole))); };
+  });
+  $("#addTimeBtn", root).onclick = function(){ openTimeForm(); };
+  root.querySelectorAll("[data-del-time]").forEach(function(b){
+    b.onclick = async function(){ try{ await api("DELETE", "/api/time-options/"+b.dataset.delTime); refreshState(); } catch(e){ toast("Couldn't delete"); } };
+  });
+  $("#addAddonBtn", root).onclick = function(){ openAddonForm(); };
+  root.querySelectorAll("[data-del-addon]").forEach(function(b){
+    b.onclick = async function(){ try{ await api("DELETE", "/api/addons/"+b.dataset.delAddon); refreshState(); } catch(e){ toast("Couldn't delete"); } };
+  });
+  $("#logoutBtn", root).onclick = async function(){ await api("POST", "/api/logout"); showLogin(); };
+}
+
+function openConsoleForm(console_){
+  var editing = !!console_;
+  var html =
+    '<div class="sheet-head"><h2>'+(editing?"Edit console":"Add console")+'</h2><button class="sheet-close" data-close>&times;</button></div>'+
+    '<div class="field"><label for="c_name">Name</label><input id="c_name" placeholder="e.g. PS5 - 3" value="'+(editing?escapeHtml(console_.name):"")+'"></div>'+
+    '<div class="field"><label for="c_type">Type</label><input id="c_type" list="c_types" placeholder="e.g. PS5, Racing Wheel" value="'+(editing?escapeHtml(console_.type||""):"")+'">'+
+      '<datalist id="c_types"><option value="PS5"><option value="PS4"><option value="Xbox Series X"><option value="Racing Wheel"><option value="PC"><option value="VR"></datalist></div>'+
+    '<div class="field"><label for="c_rate">Hourly rate</label><input id="c_rate" type="number" min="0" step="1" value="'+(editing?console_.hourlyRate:100)+'"></div>'+
+    '<button class="btn primary full" id="saveConsoleBtn">'+(editing?"Save changes":"Add console")+'</button>';
+  openSheet(html, function(host){
+    host.querySelector("[data-close]").onclick = closeSheet;
+    $("#saveConsoleBtn", host).onclick = async function(){
+      var name = $("#c_name", host).value.trim();
+      if (!name){ toast("Enter a console name"); return; }
+      var payload = { name: name, type: $("#c_type", host).value.trim(), hourlyRate: parseFloat($("#c_rate", host).value)||0 };
+      this.disabled = true;
+      try{
+        if (editing) await api("PUT", "/api/consoles/"+console_.id, payload);
+        else await api("POST", "/api/consoles", payload);
+        closeSheet(); toast(editing?"Console updated":"Console added"); refreshState();
+      } catch(e){ this.disabled=false; toast("Couldn't save"); }
+    };
+  });
+}
+function confirmDeleteConsole(console_){
+  if (!console_) return;
+  var occupied = state.runningSessions.some(function(s){ return s.consoleId === console_.id; });
+  var html = '<div class="sheet-head"><h2>Delete console</h2><button class="sheet-close" data-close>&times;</button></div>'+
+    (occupied ? '<div class="hint">This console has a session running. End it first before deleting.</div>' :
+      '<div class="hint">Delete “'+escapeHtml(console_.name)+'”? Past sessions on it stay in the log.</div>')+
+    (occupied ? '' : '<button class="btn danger full" id="confirmDelBtn" style="margin-top:14px">Delete console</button>');
+  openSheet(html, function(host){
+    host.querySelector("[data-close]").onclick = closeSheet;
+    var b = $("#confirmDelBtn", host);
+    if (b) b.onclick = async function(){
+      this.disabled = true;
+      try{ await api("DELETE", "/api/consoles/"+console_.id); closeSheet(); toast("Console deleted"); refreshState(); }
+      catch(e){ this.disabled=false; toast("Couldn't delete"); }
+    };
+  });
+}
+function openTimeForm(){
+  var html = '<div class="sheet-head"><h2>Add time option</h2><button class="sheet-close" data-close>&times;</button></div>'+
+    '<div class="field"><label for="t_label">Label</label><input id="t_label" placeholder="e.g. 20 mins"></div>'+
+    '<div class="field"><label for="t_mins">Minutes</label><input id="t_mins" type="number" min="1" placeholder="20"></div>'+
+    '<button class="btn primary full" id="saveTimeBtn">Add</button>';
+  openSheet(html, function(host){
+    host.querySelector("[data-close]").onclick = closeSheet;
+    $("#saveTimeBtn", host).onclick = async function(){
+      var label = $("#t_label", host).value.trim();
+      var mins = parseInt($("#t_mins", host).value);
+      if (!label || !mins || mins<=0){ toast("Fill in a label and minutes"); return; }
+      this.disabled = true;
+      try{ await api("POST", "/api/time-options", {label:label, minutes:mins}); closeSheet(); toast("Time option added"); refreshState(); }
+      catch(e){ this.disabled=false; toast("Couldn't add"); }
+    };
+  });
+}
+function openAddonForm(){
+  var typeOptions = Array.from(new Set(state.consoles.map(function(c){ return c.type; }).filter(Boolean)));
+  var html = '<div class="sheet-head"><h2>Add add-on</h2><button class="sheet-close" data-close>&times;</button></div>'+
+    '<div class="field"><label for="a_name">Name</label><input id="a_name" placeholder="e.g. VR headset"></div>'+
+    '<div class="field"><label for="a_amt">Extra charge</label><input id="a_amt" type="number" min="0" step="1" placeholder="20"></div>'+
+    '<div class="field"><label for="a_type">Only with this console type (optional)</label><input id="a_type" list="a_types" placeholder="Leave blank for any console">'+
+      '<datalist id="a_types">'+typeOptions.map(function(t){ return '<option value="'+escapeHtml(t)+'">'; }).join("")+'</datalist></div>'+
+    '<button class="btn primary full" id="saveAddonBtn">Add</button>';
+  openSheet(html, function(host){
+    host.querySelector("[data-close]").onclick = closeSheet;
+    $("#saveAddonBtn", host).onclick = async function(){
+      var name = $("#a_name", host).value.trim();
+      var amt = parseFloat($("#a_amt", host).value);
+      if (!name || !amt || amt<=0){ toast("Fill in a name and charge"); return; }
+      this.disabled = true;
+      try{ await api("POST", "/api/addons", {name:name, amount:amt, consoleType: $("#a_type", host).value.trim() || null}); closeSheet(); toast("Add-on added"); refreshState(); }
+      catch(e){ this.disabled=false; toast("Couldn't add"); }
+    };
+  });
+}
+
+function renderDayChip(){
+  var count = state.todaySessions.length;
+  var chip = $("#dayChip");
+  chip.textContent = count + " / 500 today";
+  chip.classList.remove("warn","bad");
+  if (count >= 500) chip.classList.add("bad");
+  else if (count >= 450) chip.classList.add("warn");
+}
+function renderAll(){
+  renderDayChip();
+  if (state.view === "dashboard") renderDashboard();
+  else if (state.view === "log") renderLog();
+  else if (state.view === "settings") renderSettings();
+}
+
+$all("nav.tabbar button").forEach(function(b){ b.onclick = function(){ switchView(b.dataset.view); }; });
+$("#headQrBtn").onclick = showQrOverlay;
+
+checkAuth();
+})();
+</script>
+</body>
+</html>
