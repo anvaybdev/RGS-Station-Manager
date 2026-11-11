@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 app/cafe.db
+.neon
+node_modules/
+.env

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: rgs-station-manager
+    runtime: python
+    repo: https://github.com/anvaybdev/RGS-Station-Manager
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --app-dir app
+    envVars:
+      - key: STATION_USER
+        value: admin
+      - key: STATION_PASS
+        generateValue: true
+      - key: STATION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
